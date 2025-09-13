@@ -13,6 +13,4 @@ app.use(express.json()); // Permite que a aplicação entenda JSON no corpo das 
 app.use('/api/produtos', produtos_Rota); // Liga as rotas à API
 
 const PORT = 3000; // Define a porta do servidor
-app.listen(PORT, () => {
-  console.log(`Servidor a correr na porta ${PORT}`);
-});
+app.listen(PORT, () => {console.log(`Servidor a correr na porta ${PORT}`);});

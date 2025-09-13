@@ -4,7 +4,7 @@ const database = require('../DataBase'); // Importa a conexão com a base de dad
 
 
 
-// Rota para criar um novo produto
+// Rota para adicionar um novo produto
 router.post('/', (req, res) => {
     const { nome_produto, cor_produto, quantidade_produto, preco_produto } = req.body;
     const query_sql = 'INSERT INTO produtos (nome_produto, cor_produto, quantidade_produto, preco_produto) VALUES (?, ?, ?, ?)';
@@ -29,52 +29,60 @@ router.get('/', (req, res) => {
             console.error('Erro ao listar produtos:', err); // Erro no terminal
             return res.status(500).json({mensagem: 'Ocorreu um erro ao listar os produtos'}); // Erro na resposta da API
         }
-        let html = `
-      <h1>Lista de Produtos</h1>
-      <table border="1" cellpadding="5" cellspacing="0">
-        <tr>
-          <th>ID</th>
-          <th>Nome</th>
-          <th>Cor</th>
-          <th>Quantidade</th>
-          <th>Preço</th>
-        </tr>
-    `;
+    res.json(results); // devolve os dados como JSON
 
-    results.forEach(produto => {
-      html += `
-        <tr>
-          <td>${produto.id_produto}</td>
-          <td>${produto.nome_produto}</td>
-          <td>${produto.cor_produto}</td>
-          <td>${produto.quantidade_produto}</td>
-          <td>${produto.preco_produto}</td>
-        </tr>
-      `;
-    });
-
-    html += '</table>';
-    res.send(html);
   });
 });
 
 
-
 // Rota para atualizar um produto
 router.put('/:id', (req, res) => {
-    const id_produto = req.params.id;
-    const { nome_produto, cor_produto, quantidade_produto, preco_produto } = req.body;
-    const query_sql = 'UPDATE produtos SET nome_produto = ?, cor_produto = ?, quantidade_produto = ?, preco_produto = ? WHERE id_produto = ?';
-    database.query(query_sql, [nome_produto, cor_produto, quantidade_produto, preco_produto, id_produto], (err, results) => {
-        if (err) {
-            console.error('Erro ao atualizar produto:', err); // Erro no terminal
-            return res.status(500).json({mensagem: 'Ocorreu um erro na atualização do produto'}); // Erro na resposta da API
-        }
-        if (results.affectedRows === 0) { // Caso não seja encontrado o ID do produto
+  const id_produto = req.params.id;
+  const dadosNovos = req.body;
+
+  // Procurar dados atuais
+  const procurar_sql = 'SELECT * FROM produtos WHERE id_produto = ?';  // Aqui o back-end tem acesso ao estado atual do produto antes de alterá-lo
+  database.query(procurar_sql, [id_produto], (err, resultado) => {
+    if (err) {
+      console.error('Erro ao procurar produto:', err);
+      return res.status(500).json({ mensagem: 'Erro ao procurar produto.' });
+    }
+
+    if (resultado.length === 0) {
       return res.status(404).json({ mensagem: 'Produto não encontrado.' });
     }
 
-    res.status(200).json({ mensagem: 'Produto atualizado com sucesso!' });
+    const produtoAtual = resultado[0];
+
+    // Agregar os dados verificando quais foram alterados
+    // Se o campo não for fornecido na requisição (pelo Front-End), isto garante que o valor atual é mantido
+    const nome = dadosNovos.nome_produto ?? produtoAtual.nome_produto;
+    const cor = dadosNovos.cor_produto ?? produtoAtual.cor_produto;
+    const quantidade = dadosNovos.quantidade_produto ?? produtoAtual.quantidade_produto;
+    const preco = dadosNovos.preco_produto ?? produtoAtual.preco_produto;
+
+    // Atualizar na base de dados
+    const atualizar_sql = `
+      UPDATE produtos SET 
+        nome_produto = ?, 
+        cor_produto = ?, 
+        quantidade_produto = ?, 
+        preco_produto = ?
+      WHERE id_produto = ?
+    `;
+
+    database.query(atualizar_sql, [nome, cor, quantidade, preco, id_produto], (err2, resultado2) => {
+      if (err2) {
+        console.error('Erro ao atualizar produto:', err2);
+        return res.status(500).json({ mensagem: 'Erro ao atualizar produto.' });
+      }
+
+      if (resultado2.affectedRows === 0) {
+        return res.status(404).json({ mensagem: 'Produto não encontrado para atualização.' });
+      }
+
+      res.status(200).json({ mensagem: 'Produto atualizado com sucesso!' });
+    });
   });
 });
 
